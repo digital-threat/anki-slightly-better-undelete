@@ -9,6 +9,13 @@ class UndeleteDialog(QDialog):
         self.setWindowTitle("Undelete Notes")
 
         label = QLabel("Some text")
+        button = QPushButton("Undelete")
+        selectAllBtn = QPushButton("Select All")
+        clearSelectionBtn = QPushButton("Clear")
+
+        qconnect(button.clicked, self.onUndeleteButtonClicked)
+        qconnect(selectAllBtn.clicked, self.onSelectAllClicked)
+        qconnect(clearSelectionBtn.clicked, self.onSelectNoneClicked)
 
         self.list = QListWidget()
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -20,15 +27,23 @@ class UndeleteDialog(QDialog):
             item = QListWidgetItem(text)
             self.list.addItem(item)
 
-        button = QPushButton("Undelete")
-        qconnect(button.clicked, self.onUndeleteButtonClicked)
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addWidget(selectAllBtn)
+        buttonLayout.addWidget(clearSelectionBtn)
 
         layout = QVBoxLayout(self)
         layout.addWidget(label)
+        layout.addLayout(buttonLayout)
         layout.addWidget(self.list)
         layout.addWidget(button)
 
         self.setLayout(layout)
+
+    def onSelectAllClicked(self) -> None:
+        self.list.selectAll()
+
+    def onSelectNoneClicked(self) -> None:
+        self.list.clearSelection()
 
     def onUndeleteButtonClicked(self) -> None:
         selected = []

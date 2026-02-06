@@ -1,7 +1,8 @@
 from aqt import mw
-# import the "show info" tool from utils.py
 from aqt.utils import showInfo, qconnect
 from aqt.qt import *
+from anki.notes import Note
+import os
 
 class UndeleteDialog(QDialog):
     def __init__(self, parent=mw):
@@ -20,12 +21,15 @@ class UndeleteDialog(QDialog):
         self.list = QListWidget()
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
 
-        items = ["Apple", "Banana", "Cherry", "Date", "Elderberry", "Blueberry", "Raspberry", "Strawberry",
-                 "Watermelon", "Zucchini"]
+        path = os.path.join(mw.col.path.replace("collection.anki2", ""), "deleted.txt")
+        file = open(path, 'r', encoding="utf-8")
+        next(file)
+        for line in file:
+            line = line.rstrip("\n")
 
-        for text in items:
-            item = QListWidgetItem(text)
+            item = QListWidgetItem(line)
             self.list.addItem(item)
+        file.close()
 
         buttonLayout = QHBoxLayout()
         buttonLayout.addWidget(selectAllBtn)
@@ -39,6 +43,29 @@ class UndeleteDialog(QDialog):
 
         self.setLayout(layout)
 
+    def restoreNotes(self) -> None:
+        for item in self.list.selectedItems():
+            nid, mid, fields = item.text().split("\t", 2)
+
+            if mw.col.db.list("select id from notes where id = ?", nid):
+                continue
+
+            model = mw.col.models.get(nid)
+            if model is None:
+                continue
+
+            note = Note(mw.col, model)
+            note.fields = fields
+            # add custom tag(s)
+
+            cardCount = mw.col.addNote(note)
+            if cardCount > 0:
+                mw.col.db.execute("update Cards set nid = ? where nid = ?", nid, note.id)
+                mw.col.db.execute("update Notes set id = ? where id = ?", nid, note.id)
+            else:
+                note.tags.append("no-card")
+                note.flush()
+
     def onSelectAllClicked(self) -> None:
         self.list.selectAll()
 
@@ -46,8 +73,9 @@ class UndeleteDialog(QDialog):
         self.list.clearSelection()
 
     def onUndeleteButtonClicked(self) -> None:
-        selected = []
+        self.restoreNotes()
 
+        selected = []
         for item in self.list.selectedItems():
             selected.append(item.text())
 
